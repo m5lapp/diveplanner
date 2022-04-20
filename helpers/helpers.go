@@ -12,22 +12,16 @@ func EqualFloat64(a, b float64) bool {
 
 // Depth() calculates the depth in metres for a given pressure in bar.
 func Depth(pressure float64) float64 {
-	// Use math.Abs() to handle the case where pressure is represented as a
-	// negative number. The result of the calculation is the same.
-	return (math.Abs(pressure) - 1.0) * 10.0
+	return (pressure - 1.0) * 10.0
 }
 
 // Pressure() calculates the pressure in bar for a given depth in metres.
 func Pressure(depth float64) float64 {
-	// Use math.Abs() to handle the case where depth is represented as a
-	// negative number. The result of the calculation is the same.
-	return math.Abs(depth)/10.0 + 1.0
+	return depth/10.0 + 1.0
 }
 
 // Pressure() calculates the pressure in bar for a given depth in metres.
 func PressureChangePerMin(rate float64) float64 {
-	// Use math.Abs() to handle the case where depth is represented as a
-	// negative number. The result of the calculation is the same.
 	return rate / 10.0
 }
 

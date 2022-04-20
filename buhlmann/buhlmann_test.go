@@ -397,3 +397,99 @@ func TestTransitionStopCalc(t *testing.T) {
 		})
 	}
 }
+
+func TestAscentCeilingNDL(t *testing.T) {
+	ean32, _ = gasmix.NewNitroxMix(0.32)
+	trimix2135, _ = gasmix.NewTrimixMix(0.21, 0.35)
+
+	tests := []struct {
+		name    string
+		m       *zhlModel
+		dRate   float64
+		stops   [2]float64
+		wantAc  float64
+		wantNdl int
+	}{
+		{
+			name:    "EAN32: 20min @ 30m",
+			m:       New(ean32, ZHL16B),
+			dRate:   20,
+			stops:   [2]float64{30.0, 20.0},
+			wantAc:  -1.172073717,
+			wantNdl: 6,
+		},
+		{
+			name:    "EAN32: 30min @ 30m",
+			m:       New(ean32, ZHL16B),
+			dRate:   20,
+			stops:   [2]float64{30.0, 30.0},
+			wantAc:  0.5636003878,
+			wantNdl: 0,
+		},
+		{
+			name:    "EAN32: 1min @ 10m",
+			m:       New(ean32, ZHL16B),
+			dRate:   20,
+			stops:   [2]float64{10.0, 1.0},
+			wantAc:  -5.090898233,
+			wantNdl: 60,
+		},
+		{
+			name:    "EAN32: 25min @ 24m",
+			m:       New(ean32, ZHL16B),
+			dRate:   20,
+			stops:   [2]float64{24.0, 25.0},
+			wantAc:  -2.510879382,
+			wantNdl: 24,
+		},
+		{
+			name:    "Trimix2135: 10min @ 26m",
+			m:       New(trimix2135, ZHL16C),
+			dRate:   9,
+			stops:   [2]float64{26.0, 10.0},
+			wantAc:  -0.8575469199,
+			wantNdl: 2,
+		},
+		{
+			name:    "Trimix2135: 20min @ 18m",
+			m:       New(trimix2135, ZHL16C),
+			dRate:   9,
+			stops:   [2]float64{18.0, 20.0},
+			wantAc:  -1.597315895,
+			wantNdl: 14,
+		},
+		{
+			name:    "Trimix2135: 45min @ 12m",
+			m:       New(trimix2135, ZHL16C),
+			dRate:   9,
+			stops:   [2]float64{12.0, 45.0},
+			wantAc:  -1.933904326,
+			wantNdl: 60,
+		},
+		{
+			name:    "Trimix2135: 27min @ 24m",
+			m:       New(trimix2135, ZHL16C),
+			dRate:   9,
+			stops:   [2]float64{24.0, 27.0},
+			wantAc:  2.166049527,
+			wantNdl: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.m.transitionCalc(tt.stops[0], tt.dRate)
+			tt.m.stopCalc(tt.stops[1])
+
+			ac := tt.m.ascentCeiling()
+			if !helpers.EqualFloat64(ac, tt.wantAc) {
+				t.Errorf("Ascent ceil want: %f; got: %f", tt.wantAc, ac)
+			}
+
+			ndl := tt.m.getNDL()
+			if ndl != tt.wantNdl {
+				t.Errorf("NDL want: %d; got: %d", tt.wantNdl, ndl)
+			}
+		})
+	}
+}
