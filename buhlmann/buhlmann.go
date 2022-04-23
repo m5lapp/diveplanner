@@ -10,6 +10,7 @@ package buhlmann
 //   https://www.medmastery.com/guide/blood-gas-analysis-clinical-guide/partial-pressure-and-alveolar-air-equation-made-simple
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/m5lapp/diveplanner/gasmix"
@@ -38,7 +39,7 @@ type compartCoefs struct {
 	heB  float64
 }
 
-// Custom type to represent a set of compartment coefficients,
+// Custom type to represent a set of compartment coefficients.
 type compartCoefSet int
 
 const (
@@ -106,6 +107,7 @@ var compartCoefSets = [][compartCount]compartCoefs{
 	},
 }
 
+// Represents the pressure of Helium and Nitrogen in a tissue compartment.
 type compartModel struct {
 	pHe float64 // Pressure of Helium.
 	pN2 float64 // Pressure of Nitrogen.
@@ -134,7 +136,7 @@ func New(gm *gasmix.GasMix, ccs compartCoefSet) *zhlModel {
 		}
 	}
 
-	model := zhlModel{
+	return &zhlModel{
 		ccs:          ccs,
 		coefs:        &compartCoefSets[ccs],
 		compartments: &c,
@@ -142,8 +144,29 @@ func New(gm *gasmix.GasMix, ccs compartCoefSet) *zhlModel {
 		currT:        0.0,
 		gasMix:       gm,
 	}
+}
 
-	return &model
+// copyModel() returns a deep copy of the Bühlmann model that can be used for
+// extrapolation calculations from the current state without modifying the main
+// model instance.
+func (m *zhlModel) copyModel() *zhlModel {
+	// Create a deep copy of the existing model's compartments.
+	var compartCopy [compartCount]compartModel
+	for i := 0; i < compartCount; i++ {
+		compartCopy[i] = compartModel{
+			pHe: m.compartments[i].pHe,
+			pN2: m.compartments[i].pN2,
+		}
+	}
+
+	return &zhlModel{
+		ccs:          m.ccs,
+		coefs:        m.coefs,
+		compartments: &compartCopy,
+		currP:        m.currP,
+		currT:        m.currT,
+		gasMix:       m.gasMix,
+	}
 }
 
 // pulmonaryPPHe() calculates the partial pressure of Helium in the lungs
@@ -248,11 +271,11 @@ func (m *zhlModel) ascentCeiling() float64 {
 	return helpers.Depth(ascentCeil)
 }
 
-// firstDecompressionStop() returns the depth in meters rounded up to the
+// firstDecompStop() returns the depth in meters rounded up to the
 // nearest multiple of three where the first decompression stop should take
 // place. A zero or negative value means that the diver is within
 // no-decompression limits and can ascend to the surface directly.
-func (m *zhlModel) firstDecompressionStop() float64 {
+func (m *zhlModel) firstDecompStop() float64 {
 	return math.Ceil(m.ascentCeiling()/3.0) * 3.0
 }
 
@@ -270,7 +293,7 @@ func (m *zhlModel) getNDL() int {
 
 	// WARNING/TODO: This probably doesn't copy the compartments data structure,
 	// just references it. Need to do a proper deep copy.
-	ndlModel := (*m)
+	ndlModel := m.copyModel()
 	for i := 0; i <= maxNDL; i++ {
 		ndlModel.stopCalc(1.0)
 		ac := ndlModel.ascentCeiling()
@@ -282,5 +305,53 @@ func (m *zhlModel) getNDL() int {
 	return maxNDL
 }
 
-// TODO: Calculate the length of any decompression stops. This is currently
-// beyond the scope of this recreational dive planner.
+// decompStopLengths() calculates the length of each decompression stop for the
+// model if the dive stopped wherever the model is currently up to. It first
+// calculates the depth of the first stop, then calculates the number of minutes
+// that the diver must stay there until their ascent ceiling is less than or
+// equal to the depth that is 3 metres shallower than that one. This process is
+// repeated up to and including the last stop at 3 metres. If there are no
+// decompression stops required, then an empty slice is returned.
+func (m *zhlModel) decompStopLengths(aRate float64) []int {
+	var stops []int
+
+	firstStop := m.firstDecompStop()
+	lastStop := 3.0
+	model := m.copyModel()
+	fmt.Println("start: ", firstStop, lastStop, model.currP)
+
+	// If the firstStop value calculated is shallower than the lastStop constant
+	// value then the whole loop is skipped as there are no decompression
+	// requirements and an empty slice will be returned.
+	for currStop := firstStop; currStop >= lastStop; currStop -= 3.0 {
+		model.transitionCalc(currStop, aRate)
+		// TODO: Allow different deco gases to be used.
+		nextStop := currStop - 3.0
+		ac := model.ascentCeiling()
+
+		// Check for the case where during the ascent to the current
+		// decompression stop depth, the diver has off-gased sufficiently such
+		// that the stop is no longer required, that is, their new ascent
+		// ceiling is shallower than the depth of the stop they are about to
+		// start. For instance, if their ascent ceiling at depth is 3.005 and
+		// after their ascent to the first stop at 6m, their new ascent ceiling
+		// is 2.951, then the 6m stop can be skipped.
+		if ac < nextStop {
+			continue
+		}
+
+		//fmt.Println(firstStop, lastStop, currStop, ac, model.currP)
+
+		stopLength := 0
+		for ac >= nextStop {
+			model.stopCalc(1.0)
+			ac = model.ascentCeiling()
+			stopLength += 1
+			//fmt.Println(ac)
+		}
+
+		stops = append(stops, stopLength)
+	}
+
+	return stops
+}

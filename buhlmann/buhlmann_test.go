@@ -1,5 +1,9 @@
 package buhlmann
 
+// A lot of the test values for the algorithmic portions of these tests were
+// generated in this Spreadsheet:
+// https://docs.google.com/spreadsheets/d/1ZXxxTV2FoBjKvZPALfITcl3Y0LoJ_hwVL6Dud_yBwrY/edit#gid=1156961245
+
 import (
 	"testing"
 
@@ -489,6 +493,81 @@ func TestAscentCeilingNDL(t *testing.T) {
 			ndl := tt.m.getNDL()
 			if ndl != tt.wantNdl {
 				t.Errorf("NDL want: %d; got: %d", tt.wantNdl, ndl)
+			}
+		})
+	}
+}
+
+func equalIntSlice(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestDecompStopLengths(t *testing.T) {
+	ean32, _ = gasmix.NewNitroxMix(0.32)
+	trimix2135, _ = gasmix.NewTrimixMix(0.21, 0.35)
+
+	tests := []struct {
+		name  string
+		m     *zhlModel
+		dRate float64
+		aRate float64
+		stops [2]float64
+		want  []int
+	}{
+		{
+			name:  "EAN32: 20min @ 30m",
+			m:     New(ean32, ZHL16B),
+			dRate: 20.0,
+			aRate: 9.0,
+			stops: [2]float64{30.0, 20.0},
+			want:  []int{}, // No decompression obligations for this dive.
+		},
+		{
+			name:  "EAN32: 60min @ 30m",
+			m:     New(ean32, ZHL16B),
+			dRate: 20.0,
+			aRate: 9.0,
+			stops: [2]float64{30.0, 60.0},
+			want:  []int{1, 15},
+		},
+		{
+			name:  "Trimix2135: 22min @ 45m",
+			m:     New(trimix2135, ZHL16B),
+			dRate: 20.0,
+			aRate: 9.0,
+			stops: [2]float64{45.0, 22.0},
+			want:  []int{1, 4, 10, 22},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.m.transitionCalc(tt.stops[0], tt.dRate)
+			tt.m.stopCalc(tt.stops[1])
+			modelBkup := tt.m.copyModel()
+
+			dsl := tt.m.decompStopLengths(tt.aRate)
+			if !equalIntSlice(dsl, tt.want) {
+				t.Errorf("want: %v; got: %v", tt.want, dsl)
+			}
+
+			// Check that the main model has not been modified.
+			for i, c1 := range tt.m.compartments {
+				c2 := modelBkup.compartments[i]
+				if c1.pHe != c2.pHe || c1.pN2 != c2.pN2 {
+					t.Errorf("Model compartment %d changed: want: %v; got %v",
+						i+1, c2, c1)
+				}
 			}
 		})
 	}

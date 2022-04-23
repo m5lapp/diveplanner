@@ -2,11 +2,10 @@ package helpers
 
 import "math"
 
-const float64EqualityThreshold = 1e-9
-
 // EqualFloat64() compares two float64 values to see if they are as close enough
 // together within a defined threshold to be considered equal.
 func EqualFloat64(a, b float64) bool {
+	const float64EqualityThreshold float64 = 1e-9
 	return math.Abs(a-b) <= float64EqualityThreshold
 }
 
