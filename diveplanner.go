@@ -377,38 +377,3 @@ func (dp *DivePlan) walkTransition(currDepth, targetDepth float64,
 
 	return currTime, currDepth
 }
-
-func main() {
-	gm, _ := gasmix.NewNitroxMix(0.32)
-	var plan DivePlan = DivePlan{
-		Created:         time.Now().UTC(),
-		Updated:         time.Now().UTC(),
-		Name:            "Sail Rock",
-		Notes:           "Good, conservative dive plan.",
-		IsSoloDive:      false,
-		DescentRate:     9.0,
-		AscentRate:      9.0,
-		SACRate:         15.0,
-		TankCount:       2,
-		TankCapacity:    11.0,
-		WorkingPressure: 200,
-		GasMix:          gm,
-		MaxPPO2:         1.4,
-		Stops: []*DivePlanStop{
-			{30.0, 20, false, ""},
-			{18.0, 15, false, ""},
-			{12.0, 23, false, ""},
-			{5.0, 3, false, "Safety stop"},
-		},
-	}
-
-	fmt.Printf("Dive possible: %v\n", plan.DiveIsPossible())
-	fmt.Printf("Min gas: %v\n", plan.MinGas())
-	fmt.Printf("Runtime: %v\n", plan.Runtime())
-	fmt.Printf("%v\n", plan)
-	for _, s := range plan.ChartProfile(30) {
-		fmt.Println(s.Time, s.Depth, s.NDL)
-		a := s.Depth
-		a++
-	}
-}

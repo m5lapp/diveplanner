@@ -168,20 +168,6 @@ func (m *ZhlModel) copyModel() *ZhlModel {
 	}
 }
 
-// pulmonaryPPHe() calculates the partial pressure of Helium in the lungs
-// (alveoli) where the water vapour content reduces the PPHe from what it would
-// otherwise be under the given pressure.
-func (m *ZhlModel) pulmonaryPPHe(ambPressure float64) float64 {
-	return (ambPressure - pH2O) * m.gasMix.PPHe(ambPressure)
-}
-
-// pulmonaryPPN2() calculates the partial pressure of Nitrogen in the lungs
-// (alveoli) where the water vapour content reduces the PPN2 from what it would
-// otherwise be under the given pressure.
-func (m *ZhlModel) pulmonaryPPN2(ambPressure float64) float64 {
-	return (ambPressure - pH2O) * m.gasMix.PPHe(ambPressure)
-}
-
 // The Schreiner Equation calculates the gas loading for a descent or ascent.
 // pamb is the ambient pressure at the start of the calculation.
 // t is the time that the transition will take in minutes.
@@ -191,7 +177,9 @@ func (m *ZhlModel) pulmonaryPPN2(ambPressure float64) float64 {
 // ht is the inert gas half-time for the curent compartment.
 func schreinerEquation(pamb, t, prate, fig, pi, ht float64) float64 {
 	// palv is the partial pressure of the inert gas being inspired inside the
-	// lungs.
+	// lungs (alveoli). The calculation accounts for the water vapour content
+	// constant which reduces the partial pressure of the inert gas from what it
+	// would otherwise be at the given ambient pressure.
 	palv := (pamb - pH2O) * fig
 	// k is the inert gas' half-time constant.
 	k := math.Log(2.0) / ht
@@ -304,14 +292,14 @@ func (m *ZhlModel) GetNDL() int {
 	return maxNDL
 }
 
-// decompStopLengths() calculates the length of each decompression stop for the
+// DecompStopLengths() calculates the length of each decompression stop for the
 // model if the dive stopped wherever the model is currently up to. It first
 // calculates the depth of the first stop, then calculates the number of minutes
 // that the diver must stay there until their ascent ceiling is less than or
 // equal to the depth that is 3 metres shallower than that one. This process is
 // repeated up to and including the last stop at 3 metres. If there are no
 // decompression stops required, then an empty slice is returned.
-func (m *ZhlModel) decompStopLengths(aRate float64) []int {
+func (m *ZhlModel) DecompStopLengths(aRate float64) []int {
 	var stops []int
 
 	firstStop := m.firstDecompStop()
