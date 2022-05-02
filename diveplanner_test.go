@@ -57,7 +57,7 @@ func TestTransitionDuration(t *testing.T) {
 	}
 }
 
-func TestCalcTransition(t *testing.T) {
+func TestDiveProfile(t *testing.T) {
 	tests := []struct {
 		name string
 		dp   *DivePlan
@@ -94,8 +94,7 @@ func TestCalcTransition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.dp.calcTransitions()
-			for i, s := range tt.dp.Stops {
+			for i, s := range tt.dp.DiveProfile() {
 				if s.Depth != tt.want[i].Depth ||
 					s.Duration != tt.want[i].Duration ||
 					s.IsTransition != tt.want[i].IsTransition ||
@@ -152,6 +151,64 @@ func TestRuntime(t *testing.T) {
 			rt := tt.dp.Runtime()
 			if rt != tt.want {
 				t.Errorf("want: %f; got: %f", tt.want, rt)
+			}
+		})
+	}
+}
+
+func TestDSRTable(t *testing.T) {
+	tests := []struct {
+		name string
+		dp   *DivePlan
+		want [][3]float64
+	}{
+		{
+			name: "No stops",
+			dp: &DivePlan{
+				DescentRate: 20,
+				AscentRate:  9,
+				Stops:       []*DivePlanStop{},
+			},
+			want: [][3]float64{},
+		}, {
+			name: "61min dive",
+			dp: &DivePlan{
+				DescentRate: 20,
+				AscentRate:  9,
+				Stops: []*DivePlanStop{
+					{25.0, 13, false, ""},
+					{18.0, 15, false, ""},
+					{12.0, 23, false, ""},
+					{5.0, 3, false, ""},
+				},
+			},
+			want: [][3]float64{
+				{25.0, 13.0, 15.0},
+				{18.0, 15.0, 31.0},
+				{12.0, 23.0, 55.0},
+				{5.0, 3.0, 59.0}},
+		}, {
+			name: "Bounce dive",
+			dp: &DivePlan{
+				DescentRate: 18,
+				AscentRate:  6,
+				Stops: []*DivePlanStop{
+					{40.0, 1, false, ""},
+					{5.0, 3, false, ""},
+				},
+			},
+			want: [][3]float64{{40.0, 1.0, 4.0}, {5.0, 3.0, 13.0}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for i, s := range *tt.dp.DSRTable() {
+				if s[0] != tt.want[i][0] ||
+					s[1] != tt.want[i][1] ||
+					s[2] != tt.want[i][2] {
+					t.Errorf("want: %v; got: %v", tt.want, s)
+				}
 			}
 		})
 	}

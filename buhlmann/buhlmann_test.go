@@ -34,7 +34,7 @@ func TestNew(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		model *zhlModel
+		model *ZhlModel
 		want  testNewWant
 	}{
 		{
@@ -142,7 +142,7 @@ func TestTransitionStopCalc(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		m     *zhlModel
+		m     *ZhlModel
 		dRate float64
 		aRate float64
 		stops [5]float64
@@ -349,7 +349,7 @@ func TestTransitionStopCalc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.m.transitionCalc(tt.stops[0], tt.dRate)
+			tt.m.TransitionCalc(tt.stops[0], tt.dRate)
 			for i, c := range tt.m.compartments {
 				if !helpers.EqualFloat64(c.pHe, tt.want1[i].pHe) {
 					t.Errorf("s1c%dpHe: want: %f; got: %f", i+1, tt.want1[i].pHe, c.pHe)
@@ -359,7 +359,7 @@ func TestTransitionStopCalc(t *testing.T) {
 				}
 			}
 
-			tt.m.stopCalc(tt.stops[1])
+			tt.m.StopCalc(tt.stops[1])
 			for i, c := range tt.m.compartments {
 				if !helpers.EqualFloat64(c.pHe, tt.want2[i].pHe) {
 					t.Errorf("s2c%dpHe: want: %f; got: %f", i+1, tt.want2[i].pHe, c.pHe)
@@ -369,7 +369,7 @@ func TestTransitionStopCalc(t *testing.T) {
 				}
 			}
 
-			tt.m.transitionCalc(tt.stops[2], tt.aRate)
+			tt.m.TransitionCalc(tt.stops[2], tt.aRate)
 			for i, c := range tt.m.compartments {
 				if !helpers.EqualFloat64(c.pHe, tt.want3[i].pHe) {
 					t.Errorf("s3c%dpHe: want: %f; got: %f", i+1, tt.want3[i].pHe, c.pHe)
@@ -379,7 +379,7 @@ func TestTransitionStopCalc(t *testing.T) {
 				}
 			}
 
-			tt.m.stopCalc(tt.stops[3])
+			tt.m.StopCalc(tt.stops[3])
 			for i, c := range tt.m.compartments {
 				if !helpers.EqualFloat64(c.pHe, tt.want4[i].pHe) {
 					t.Errorf("s4c%dpHe: want: %f; got: %f", i+1, tt.want4[i].pHe, c.pHe)
@@ -389,7 +389,7 @@ func TestTransitionStopCalc(t *testing.T) {
 				}
 			}
 
-			tt.m.transitionCalc(tt.stops[4], tt.aRate)
+			tt.m.TransitionCalc(tt.stops[4], tt.aRate)
 			for i, c := range tt.m.compartments {
 				if !helpers.EqualFloat64(c.pHe, tt.want5[i].pHe) {
 					t.Errorf("s5c%dpHe: want: %f; got: %f", i+1, tt.want5[i].pHe, c.pHe)
@@ -408,7 +408,7 @@ func TestAscentCeilingNDL(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		m       *zhlModel
+		m       *ZhlModel
 		dRate   float64
 		stops   [2]float64
 		wantAc  float64
@@ -482,15 +482,15 @@ func TestAscentCeilingNDL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.m.transitionCalc(tt.stops[0], tt.dRate)
-			tt.m.stopCalc(tt.stops[1])
+			tt.m.TransitionCalc(tt.stops[0], tt.dRate)
+			tt.m.StopCalc(tt.stops[1])
 
 			ac := tt.m.ascentCeiling()
 			if !helpers.EqualFloat64(ac, tt.wantAc) {
 				t.Errorf("Ascent ceil want: %f; got: %f", tt.wantAc, ac)
 			}
 
-			ndl := tt.m.getNDL()
+			ndl := tt.m.GetNDL()
 			if ndl != tt.wantNdl {
 				t.Errorf("NDL want: %d; got: %d", tt.wantNdl, ndl)
 			}
@@ -518,7 +518,7 @@ func TestDecompStopLengths(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		m     *zhlModel
+		m     *ZhlModel
 		dRate float64
 		aRate float64
 		stops [2]float64
@@ -552,8 +552,8 @@ func TestDecompStopLengths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.m.transitionCalc(tt.stops[0], tt.dRate)
-			tt.m.stopCalc(tt.stops[1])
+			tt.m.TransitionCalc(tt.stops[0], tt.dRate)
+			tt.m.StopCalc(tt.stops[1])
 			modelBkup := tt.m.copyModel()
 
 			dsl := tt.m.decompStopLengths(tt.aRate)

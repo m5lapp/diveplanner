@@ -24,6 +24,20 @@ func PressureChangePerMin(rate float64) float64 {
 	return rate / 10.0
 }
 
+// DescOrAsc() indicates whether a diver is descending (positive pressure delta,
+// 1.0 is returned), ascending (negative pressure delta, -1.0 is returned) or
+// staying at the same level (0 is returned) when they move from one depth to
+// another.
+func DescOrAsc(fromD, toD float64) float64 {
+	if EqualFloat64(fromD, toD) {
+		return 0.0
+	} else if fromD < toD {
+		return 1.0
+	} else {
+		return -1.0
+	}
+}
+
 func MetresToFeet(depth float64) float64 {
 	return depth * 3.281
 }

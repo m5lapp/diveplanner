@@ -10,7 +10,6 @@ package buhlmann
 //   https://www.medmastery.com/guide/blood-gas-analysis-clinical-guide/partial-pressure-and-alveolar-air-equation-made-simple
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/m5lapp/diveplanner/gasmix"
@@ -113,7 +112,7 @@ type compartModel struct {
 	pN2 float64 // Pressure of Nitrogen.
 }
 
-type zhlModel struct {
+type ZhlModel struct {
 	ccs          compartCoefSet
 	coefs        *[compartCount]compartCoefs
 	compartments *[compartCount]compartModel
@@ -126,7 +125,7 @@ type zhlModel struct {
 // model. The initial value of pN takes into account the Partial Pressure of
 // water vapour in the lungs which offsets some of the volume of Nitrogen in the
 // air.
-func New(gm *gasmix.GasMix, ccs compartCoefSet) *zhlModel {
+func New(gm *gasmix.GasMix, ccs compartCoefSet) *ZhlModel {
 	// Create the compartment model and initialise the values for each one.
 	var c [compartCount]compartModel
 	for i := 0; i < compartCount; i++ {
@@ -136,7 +135,7 @@ func New(gm *gasmix.GasMix, ccs compartCoefSet) *zhlModel {
 		}
 	}
 
-	return &zhlModel{
+	return &ZhlModel{
 		ccs:          ccs,
 		coefs:        &compartCoefSets[ccs],
 		compartments: &c,
@@ -149,7 +148,7 @@ func New(gm *gasmix.GasMix, ccs compartCoefSet) *zhlModel {
 // copyModel() returns a deep copy of the Bühlmann model that can be used for
 // extrapolation calculations from the current state without modifying the main
 // model instance.
-func (m *zhlModel) copyModel() *zhlModel {
+func (m *ZhlModel) copyModel() *ZhlModel {
 	// Create a deep copy of the existing model's compartments.
 	var compartCopy [compartCount]compartModel
 	for i := 0; i < compartCount; i++ {
@@ -159,7 +158,7 @@ func (m *zhlModel) copyModel() *zhlModel {
 		}
 	}
 
-	return &zhlModel{
+	return &ZhlModel{
 		ccs:          m.ccs,
 		coefs:        m.coefs,
 		compartments: &compartCopy,
@@ -172,14 +171,14 @@ func (m *zhlModel) copyModel() *zhlModel {
 // pulmonaryPPHe() calculates the partial pressure of Helium in the lungs
 // (alveoli) where the water vapour content reduces the PPHe from what it would
 // otherwise be under the given pressure.
-func (m *zhlModel) pulmonaryPPHe(ambPressure float64) float64 {
+func (m *ZhlModel) pulmonaryPPHe(ambPressure float64) float64 {
 	return (ambPressure - pH2O) * m.gasMix.PPHe(ambPressure)
 }
 
 // pulmonaryPPN2() calculates the partial pressure of Nitrogen in the lungs
 // (alveoli) where the water vapour content reduces the PPN2 from what it would
 // otherwise be under the given pressure.
-func (m *zhlModel) pulmonaryPPN2(ambPressure float64) float64 {
+func (m *ZhlModel) pulmonaryPPN2(ambPressure float64) float64 {
 	return (ambPressure - pH2O) * m.gasMix.PPHe(ambPressure)
 }
 
@@ -202,9 +201,9 @@ func schreinerEquation(pamb, t, prate, fig, pi, ht float64) float64 {
 	return palv + r*(t-(1.0/k)) - (palv-pi-(r/k))*math.Pow(math.E, (-k*t))
 }
 
-// transitionCalc() recalculates the model's compartment inert gas pressures
+// TransitionCalc() recalculates the model's compartment inert gas pressures
 // following a descent or ascent to the given depth at the given rate in m/min.
-func (m *zhlModel) transitionCalc(depth, rate float64) {
+func (m *ZhlModel) TransitionCalc(depth, rate float64) {
 	// Ambient pressure at the end of the transition.
 	nextP := helpers.Pressure(depth)
 	// Pressure change in bar per minute at the given rate of metres per minute.
@@ -229,10 +228,10 @@ func (m *zhlModel) transitionCalc(depth, rate float64) {
 	m.currT += math.Abs(time)
 }
 
-// Like transitionCalc(), stopCalc() also recalculates the model's compartment
+// Like transitionCalc(), StopCalc() also recalculates the model's compartment
 // inert gas pressures but when staying at the current depth for a given time in
 // minutes.
-func (m *zhlModel) stopCalc(time float64) {
+func (m *ZhlModel) StopCalc(time float64) {
 	// Calculate the new compartment pressures for He and N2 for each
 	// compartment. Note that prate is set to zero as we are staying at one
 	// level.
@@ -250,7 +249,7 @@ func (m *zhlModel) stopCalc(time float64) {
 // the diver can ascend safely based on their current compartment loading. If
 // the ascent ceiling is greater than zero metres, then the dive is a
 // decompression dive. The return value is an absolute pressure in bar.
-func (m *zhlModel) ascentCeiling() float64 {
+func (m *ZhlModel) ascentCeiling() float64 {
 	ascentCeil := -(math.MaxFloat64)
 
 	for i, c := range m.compartments {
@@ -275,7 +274,7 @@ func (m *zhlModel) ascentCeiling() float64 {
 // nearest multiple of three where the first decompression stop should take
 // place. A zero or negative value means that the diver is within
 // no-decompression limits and can ascend to the surface directly.
-func (m *zhlModel) firstDecompStop() float64 {
+func (m *ZhlModel) firstDecompStop() float64 {
 	return math.Ceil(m.ascentCeiling()/3.0) * 3.0
 }
 
@@ -284,18 +283,18 @@ func (m *zhlModel) firstDecompStop() float64 {
 // ascent ceiling is found. The number of iterations is then the NDL value. Up
 // to 60 iterations will be performed, if 60 is returned then it is assumed to
 // be read as 60+ minutes.
-func (m *zhlModel) getNDL() int {
+func (m *ZhlModel) GetNDL() int {
 	maxNDL := 60
 
 	if m.currT == 0.0 {
 		return maxNDL
 	}
 
-	// WARNING/TODO: This probably doesn't copy the compartments data structure,
-	// just references it. Need to do a proper deep copy.
+	// Make a copy of the model's compartments data structure so that we do not
+	// overwrite it with data from the NDL calculations.
 	ndlModel := m.copyModel()
 	for i := 0; i <= maxNDL; i++ {
-		ndlModel.stopCalc(1.0)
+		ndlModel.StopCalc(1.0)
 		ac := ndlModel.ascentCeiling()
 		if ac > 0.0 {
 			return i
@@ -312,19 +311,18 @@ func (m *zhlModel) getNDL() int {
 // equal to the depth that is 3 metres shallower than that one. This process is
 // repeated up to and including the last stop at 3 metres. If there are no
 // decompression stops required, then an empty slice is returned.
-func (m *zhlModel) decompStopLengths(aRate float64) []int {
+func (m *ZhlModel) decompStopLengths(aRate float64) []int {
 	var stops []int
 
 	firstStop := m.firstDecompStop()
 	lastStop := 3.0
 	model := m.copyModel()
-	fmt.Println("start: ", firstStop, lastStop, model.currP)
 
 	// If the firstStop value calculated is shallower than the lastStop constant
 	// value then the whole loop is skipped as there are no decompression
 	// requirements and an empty slice will be returned.
 	for currStop := firstStop; currStop >= lastStop; currStop -= 3.0 {
-		model.transitionCalc(currStop, aRate)
+		model.TransitionCalc(currStop, aRate)
 		// TODO: Allow different deco gases to be used.
 		nextStop := currStop - 3.0
 		ac := model.ascentCeiling()
@@ -340,14 +338,11 @@ func (m *zhlModel) decompStopLengths(aRate float64) []int {
 			continue
 		}
 
-		//fmt.Println(firstStop, lastStop, currStop, ac, model.currP)
-
 		stopLength := 0
 		for ac >= nextStop {
-			model.stopCalc(1.0)
+			model.StopCalc(1.0)
 			ac = model.ascentCeiling()
 			stopLength += 1
-			//fmt.Println(ac)
 		}
 
 		stops = append(stops, stopLength)
