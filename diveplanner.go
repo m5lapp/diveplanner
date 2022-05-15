@@ -18,8 +18,8 @@ const (
 	DiveFactorStressful     float64 = 2.5
 	DiveFactorSeriousStress float64 = 3.0
 
-	otuRepetitiveDiveLimit float64 = 300.0
-	otuSingleDiveLimit     float64 = 850.0
+	OtuRepetitiveDiveLimit float64 = 300.0
+	OtuSingleDiveLimit     float64 = 850.0
 
 	safetyStopDepth float64 = 5.0
 )
@@ -55,6 +55,47 @@ type DivePlan struct {
 	GasMix          *gasmix.GasMix  `bson:"nitrox_mix" json:"nitrox_mix"`
 	MaxPPO2         float64         `bson:"max_ppo2" json:"max_ppo2"`
 	Stops           []*DivePlanStop `bson:"stops" json:"stops"`
+}
+
+// floatInRange() will chack that a given value is between two values
+// (inclusive) and append a suitable error to a slice of errors if not.
+func numInRange[T float64 | int](name string, val, min, max T, errs []error) []error {
+	const floatRangeErr string = "%s value (%v) must be between %v and %v inclusive"
+
+	if val < min || val > max {
+		errs = append(errs, fmt.Errorf(floatRangeErr, name, val, min, max))
+	}
+
+	return errs
+}
+
+// Validate() validates a DivePlan struct and ensures all of its fields have
+// sane values, it will return a slice of errors which will be empty if there
+// are no errors..
+func (dp *DivePlan) Validate() []error {
+	var errs []error
+
+	if dp.Name == "" {
+		errs = append(errs, fmt.Errorf("name cannot be empty"))
+	}
+
+	errs = numInRange("Descent Rate", dp.DescentRate, 1.0, 30.0, errs)
+	errs = numInRange("Ascent Rate", dp.AscentRate, 1.0, 18.0, errs)
+	errs = numInRange("SAC Rate", dp.SACRate, 1.0, 100.0, errs)
+	errs = numInRange("Tank Count", dp.TankCount, 1, 6, errs)
+	errs = numInRange("Tank Capacity", dp.TankCapacity, 3.0, 20.0, errs)
+	errs = numInRange("Tank Working Pressure", dp.WorkingPressure, 150, 300, errs)
+	errs = numInRange("Dive Factor", dp.DiveFactor, 1.0, 6.0, errs)
+	errs = numInRange("Max PPO2", dp.MaxPPO2, 0.21, 1.6, errs)
+
+	for i, s := range dp.Stops {
+		depthStr := fmt.Sprintf("Stop %d Depth", i)
+		durStr := fmt.Sprintf("Stop %d Duration", i)
+		numInRange(depthStr, s.Depth, 1.0, 300.0, errs)
+		numInRange(durStr, s.Duration, 0.5, 300.0, errs)
+	}
+
+	return errs
 }
 
 // transitionDuration() calculates the amount of time in minutes required to
@@ -336,7 +377,7 @@ func (dp *DivePlan) ChartProfile(resolution int) []ProfileSample {
 	}
 
 	// Final transition back to the surface.
-	currTime, currDepth = dp.walkTransition(currDepth, 0.0, currTime, resolution, bmann, &profile)
+	_, _ = dp.walkTransition(currDepth, 0.0, currTime, resolution, bmann, &profile)
 	return profile
 }
 

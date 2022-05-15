@@ -556,7 +556,7 @@ func TestDecompStopLengths(t *testing.T) {
 			tt.m.StopCalc(tt.stops[1])
 			modelBkup := tt.m.copyModel()
 
-			dsl := tt.m.decompStopLengths(tt.aRate)
+			dsl := tt.m.DecompStopLengths(tt.aRate)
 			if !equalIntSlice(dsl, tt.want) {
 				t.Errorf("want: %v; got: %v", tt.want, dsl)
 			}

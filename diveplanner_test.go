@@ -1,6 +1,63 @@
 package diveplanner
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
+
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		name string
+		dp   *DivePlan
+		want []error
+	}{
+		{
+			name: "invalid dive",
+			dp: &DivePlan{
+				DescentRate:     50.0,
+				AscentRate:      -8.0,
+				SACRate:         0.5,
+				TankCount:       7,
+				TankCapacity:    25.0,
+				WorkingPressure: 350.0,
+				DiveFactor:      0.7,
+				MaxPPO2:         2.0,
+				Stops: []*DivePlanStop{
+					{22.0, 26, false, ""},
+					{5.0, 3, false, ""},
+				},
+			},
+			want: []error{
+				errors.New("name cannot be empty"),
+				errors.New("Descent Rate value (50) must be between 1 and 30 inclusive"),
+				errors.New("Ascent Rate value (-8) must be between 1 and 18 inclusive"),
+				errors.New("SAC Rate value (0.5) must be between 1 and 100 inclusive"),
+				errors.New("Tank Count value (7) must be between 1 and 6 inclusive"),
+				errors.New("Tank Capacity value (25) must be between 3 and 20 inclusive"),
+				errors.New("Tank Working Pressure value (350) must be between 150 and 300 inclusive"),
+				errors.New("Dive Factor value (0.7) must be between 1 and 6 inclusive"),
+				errors.New("Max PPO2 value (2) must be between 0.21 and 1.6 inclusive"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := tt.dp.Validate()
+			if len(errs) != len(tt.want) {
+				t.Errorf("validate incorrect num of errors, want: %d; got: %d - %v", len(tt.want), len(errs), errs)
+			}
+
+			for i, e := range errs {
+				w := tt.want[i].Error()
+				if e.Error() != w {
+					t.Errorf("errors do not match, want:\n%v;\ngot:\n%v", e.Error(), w)
+					break
+				}
+			}
+		})
+	}
+}
 
 func TestTransitionDuration(t *testing.T) {
 	tests := []struct {
